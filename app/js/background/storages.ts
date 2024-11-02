@@ -5,7 +5,7 @@ import { ModuleData } from "./moduleTypes";
 
 declare const browserAPI: browserAPI;
 declare const BrowserAPI: BrowserAPI;
-declare const window: BackgroundpageWindow;
+declare const self: BackgroundpageWindow;
 
 export namespace Storages.SetupHandling.TransferFromOld.LegacyScriptReplace.LocalStorageReplace {
 	interface PersistentData {
@@ -133,11 +133,11 @@ export namespace Storages.SetupHandling.TransferFromOld.LegacyScriptReplace.Loca
 		//Analyze the file
 		const file = new TernFile('[doc]');
 		file.text = lines.join('\n');
-		const srv = new window.CodeMirror.TernServer({
+		const srv = new self.CodeMirror.TernServer({
 			defs: []
 		});
-		window.tern.withContext(srv.cx, () => {
-			file.ast = window.tern.parse(file.text, srv.passes, {
+		self.tern.withContext(srv.cx, () => {
+			file.ast = self.tern.parse(file.text, srv.passes, {
 				directSourceFile: file,
 				allowReturnOutsideFunction: true,
 				allowImportExportEverywhere: true,
@@ -312,7 +312,7 @@ export namespace Storages.SetupHandling.TransferFromOld.LegacyScriptReplace.Chro
 			callLine.from.line, expr.callee.end);
 
 		var newLine = firstLine.slice(0, lineExprStart) +
-			`window.crmAPI.chrome('${chromeAPI.call}')`;
+			`self.crmAPI.chrome('${chromeAPI.call}')`;
 
 		var lastChar = null;
 		while (newLine[(lastChar = newLine.length - 1)] === ' ') {
@@ -450,7 +450,7 @@ export namespace Storages.SetupHandling.TransferFromOld.LegacyScriptReplace.Chro
 			}
 			if (callee.object && callee.object.name) {
 				//First object
-				const isWindowCall = (isProperty(callee.object.name, 'window') &&
+				const isWindowCall = (isProperty(callee.object.name, 'self') &&
 					isProperty(callee.property.name || (callee.property as any).raw, 'chrome'));
 				if (isWindowCall || isProperty(callee.object.name, 'chrome')) {
 					data.expression = callee;
@@ -660,11 +660,11 @@ export namespace Storages.SetupHandling.TransferFromOld.LegacyScriptReplace.Chro
 			//Analyze the file
 			var file = new LegacyScriptReplace.TernFile('[doc]');
 			file.text = lines.join('\n');
-			var srv = new window.CodeMirror.TernServer({
+			var srv = new self.CodeMirror.TernServer({
 				defs: []
 			});
-			window.tern.withContext(srv.cx, () => {
-				file.ast = window.tern.parse(file.text, srv.passes, {
+			self.tern.withContext(srv.cx, () => {
+				file.ast = self.tern.parse(file.text, srv.passes, {
 					directSourceFile: file,
 					allowReturnOutsideFunction: true,
 					allowImportExportEverywhere: true,
@@ -833,149 +833,11 @@ export namespace Storages.SetupHandling.TransferFromOld.LegacyScriptReplace {
 		}
 };
 
-export namespace Storages.SetupHandling.TransferFromOld {
-	function backupLocalStorage() {
-		if (typeof localStorage === 'undefined' ||
-			(typeof window.indexedDB === 'undefined' && typeof (window as any).webkitIndexedDB === 'undefined')) {
-			return;
-		}
-
-		const data = JSON.stringify(localStorage);
-		const idb: IDBFactory = window.indexedDB || (window as any).webkitIndexedDB;
-		const req = idb.open('localStorageBackup', 1);
-		req.onerror = () => { window.log('Error backing up localStorage data'); };
-		req.onupgradeneeded = (event) => {
-			const db: IDBDatabase = (event.target as any).result;
-			const objectStore = db.createObjectStore('data', {
-				keyPath: 'id'
-			});
-			objectStore.add({
-				id: 0,
-				data: data
-			});
-		}
-	}
-
-	export async function transferCRMFromOld(openInNewTab: boolean, storageSource: {
-		getItem(index: string | number): any;
-	} = localStorage, method: SCRIPT_CONVERSION_TYPE = SCRIPT_CONVERSION_TYPE.BOTH): Promise<CRM.Tree> {
-		backupLocalStorage();
-		await Storages.SetupHandling.loadTernFiles();
-
-		const amount = parseInt(storageSource.getItem('numberofrows'), 10) + 1;
-
-		const nodes: CRM.Tree = [];
-		for (let i = 1; i < amount; i++) {
-			nodes.push(await parseOldCRMNode(storageSource.getItem(String(i)),
-				openInNewTab, method));
-		}
-
-		//Structure nodes with children etc
-		const crm: CRM.Node[] = [];
-		assignParents(crm, nodes, {
-			index: 0
-		}, nodes.length);
-		return crm;
-	}
-
-	async function parseOldCRMNode(string: string,
-		openInNewTab: boolean, method: SCRIPT_CONVERSION_TYPE): Promise<CRM.Node> {
-		let node: CRM.Node;
-		const [name, type, nodeData] = string.split('%123');
-		switch (type.toLowerCase()) {
-			//Stylesheets don't exist yet so don't implement those
-			case 'link':
-				let split;
-				if (nodeData.indexOf(', ') > -1) {
-					split = nodeData.split(', ');
-				} else {
-					split = nodeData.split(',');
-				}
-				node = modules.constants.templates.getDefaultLinkNode({
-					name: name,
-					id: await modules.Util.generateItemId() as CRM.NodeId<CRM.LinkNode>,
-					value: split.map(function (url) {
-						return {
-							newTab: openInNewTab,
-							url: url
-						};
-					})
-				});
-				break;
-			case 'divider':
-				node = modules.constants.templates.getDefaultDividerNode({
-					name: name,
-					id: await modules.Util.generateItemId() as CRM.NodeId<CRM.DividerNode>,
-					isLocal: true
-				});
-				break;
-			case 'menu':
-				node = modules.constants.templates.getDefaultMenuNode({
-					name: name,
-					id: await modules.Util.generateItemId() as CRM.NodeId<CRM.MenuNode>,
-					children: (nodeData as any) as CRM.Tree,
-					isLocal: true
-				});
-				break;
-			case 'script':
-				let [scriptLaunchMode, scriptData] = nodeData.split('%124');
-				let triggers;
-				if (scriptLaunchMode !== '0' && scriptLaunchMode !== '2') {
-					triggers = scriptLaunchMode.split('1,')[1].split(',');
-					triggers = triggers.map(function (item) {
-						return {
-							not: false,
-							url: item.trim()
-						};
-					}).filter(function (item) {
-						return item.url !== '';
-					});
-					scriptLaunchMode = '2';
-				}
-				const id = await modules.Util.generateItemId();
-				node = modules.constants.templates.getDefaultScriptNode({
-					name: name,
-					id: id,
-					value: {
-						launchMode: parseInt(scriptLaunchMode, 10),
-						updateNotice: true,
-						oldScript: scriptData,
-						script: Storages.SetupHandling.TransferFromOld.LegacyScriptReplace
-							.convertScriptFromLegacy(scriptData, id, method)
-					} as CRM.ScriptVal,
-					isLocal: true
-				});
-				if (triggers) {
-					node.triggers = triggers;
-				}
-				break;
-		}
-
-		return node;
-	}
-	function assignParents(parent: CRM.Tree,
-		nodes: CRM.Node[], index: {
-			index: number;
-		}, amount: number) {
-		for (; amount !== 0 && nodes[index.index]; index.index++ , amount--) {
-			const currentNode = nodes[index.index];
-			if (currentNode.type === 'menu') {
-				const childrenAmount = ~~currentNode.children;
-				currentNode.children = [];
-				index.index++;
-				assignParents(currentNode.children, nodes, index, childrenAmount);
-				index.index--;
-			}
-			parent.push(currentNode);
-		}
-	}
-}
-
 export namespace Storages.SetupHandling {
 	//Local storage
 	async function getDefaultStorages(): Promise<[CRM.StorageLocal, CRM.SettingsStorage]> {
 		const syncStorage = await getDefaultSyncStorage();
-		const syncHash = window.md5(JSON.stringify(syncStorage));
+		const syncHash = modules.Util.md5(JSON.stringify(syncStorage));
 
 		return [{
 			requestPermissions: [],
@@ -1045,8 +907,6 @@ export namespace Storages.SetupHandling {
 		storageLocalCopy: CRM.StorageLocal;
 		chromeStorageLocal: CRM.StorageLocal;
 	}> {
-		window.localStorage.setItem('transferToVersion2', 'true');
-
 		const returnObj: {
 			done: boolean;
 			onDone?: (result: {
@@ -1101,7 +961,7 @@ export namespace Storages.SetupHandling {
 		//Update storageLocal's hash of storage sync
 		storageLocal.settingsVersionData.current.hash = 
 			storageLocal.settingsVersionData.latest.hash = 
-				window.md5(JSON.stringify(syncStorage));
+				modules.Util.md5(JSON.stringify(syncStorage));
 		storageLocal.settingsVersionData.current.date =
 			storageLocal.settingsVersionData.latest.date = 
 				syncStorage.settingsLastUpdatedAt;
@@ -1119,31 +979,6 @@ export namespace Storages.SetupHandling {
 
 		returnObj.value = result;
 		return result;
-	}
-	export async function handleTransfer(): Promise<{
-		settingsStorage: CRM.SettingsStorage;
-		storageLocalCopy: CRM.StorageLocal;
-		chromeStorageLocal: CRM.StorageLocal;
-	}> {
-		window.localStorage.setItem('transferToVersion2', 'true');
-
-		browserAPI.storage.local.set({
-			isTransfer: true
-		});
-
-		if (!window.CodeMirror || !window.CodeMirror.TernServer) {
-			//Wait until TernServer is loaded
-			await new Promise((resolveTernLoader) => {
-				loadTernFiles().then(() => {
-					resolveTernLoader(null);
-				}, (err) => {
-					window.log('Failed to load tern files', err);
-				})
-			});
-		}
-	
-		const whatPage = window.localStorage.getItem('whatpage') === 'true';
-		return await handleFirstRun(await TransferFromOld.transferCRMFromOld(whatPage));
 	}
 	export function loadTernFiles(): Promise<void> {
 		return new Promise((resolve, reject) => {
@@ -1211,7 +1046,7 @@ export namespace Storages.SetupHandling {
 				});
 			}).catch(async (err) => {
 				//Switch to local storage
-				window.logAsync(window.__(I18NKeys.background.storages.syncUploadError), err);
+				self.logAsync(self.__(I18NKeys.background.storages.syncUploadError), err);
 				modules.storages.storageLocal.useStorageSync = false;
 				await browserAPI.storage.local.set({
 					useStorageSync: false
@@ -1286,13 +1121,13 @@ export namespace Storages {
 		}
 		//Check if any background page updates occurred
 		const { same, additions, removals } = diffCRM(change.oldValue, change.newValue);
-		await window.Promise.all([
+		await Promise.all([
 			...same.map(async ({ id }) => {
 				const oldNode = findIdInTree(id, change.oldValue);
 				const currentNode = modules.crm.crmById.get(id) as CRM.ScriptNode;
 				const newNode = findIdInTree(id, change.newValue);
 				if (newNode.type === 'script' && oldNode && oldNode.type === 'script') {
-					const [ oldBgScript, currentBgScript, newBgScript ] = await window.Promise.all([
+					const [ oldBgScript, currentBgScript, newBgScript ] = await Promise.all([
 						modules.Util.getScriptNodeScript(oldNode, 'background'),
 						modules.Util.getScriptNodeScript(currentNode, 'background'),
 						modules.Util.getScriptNodeScript(newNode, 'background')
@@ -1380,13 +1215,13 @@ export namespace Storages {
 		return null;
 	}
 	let cachedWrite: EncodedString<CRM.SettingsStorage> = null;
-	let cachedWriteTimer: number = null;
+	let cachedWriteTimer: ReturnType<typeof setTimeout> = null;
 	async function uploadSync(changes: StorageChange[]) {
 		const settingsJson = JSON.stringify(modules.storages.settingsStorage);
 		await browserAPI.storage.local.set({
 			settingsVersionData: {
 				current: {
-					hash: window.md5(settingsJson),
+					hash: modules.Util.md5(settingsJson),
 					date: new Date().getTime()
 				},
 				latest: modules.storages.storageLocal.settingsVersionData.latest,
@@ -1414,15 +1249,15 @@ export namespace Storages {
 					});
 				}
 			}).catch((e) => {
-				window.logAsync(window.__(I18NKeys.background.storages.localUploadError), e);
+				self.logAsync(self.__(I18NKeys.background.storages.localUploadError), e);
 				
 				if (e.message.indexOf('MAX_WRITE_OPERATIONS_PER_MINUTE') > -1 ||
 					e.message.indexOf('MAX_WRITE_OPERATIONS_PER_HOUR') > -1) {
 						cachedWrite = JSON.stringify(modules.storages.settingsStorage);
 						if (cachedWriteTimer) {
-							window.clearTimeout(cachedWriteTimer);
+							clearTimeout(cachedWriteTimer);
 						}
-						cachedWriteTimer = window.setTimeout(async () => {
+						cachedWriteTimer = setTimeout(async () => {
 							await browserAPI.storage.local.set({
 								settings: cachedWrite
 							});
@@ -1449,7 +1284,7 @@ export namespace Storages {
 						settings: null
 					});
 				}).catch(async (err) => {
-					window.logAsync(window.__(I18NKeys.background.storages.syncUploadError), err);
+					self.logAsync(self.__(I18NKeys.background.storages.syncUploadError), err);
 					modules.storages.storageLocal.useStorageSync = false;
 					await browserAPI.storage.local.set({
 						useStorageSync: false
@@ -1555,7 +1390,7 @@ export namespace Storages {
 
 	export async function setStorages(storageLocalCopy: CRM.StorageLocal, settingsStorage: CRM.SettingsStorage,
 		chromeStorageLocal: CRM.StorageLocal, callback?: () => void) {
-			window.info(await window.__(I18NKeys.background.storages.settingGlobalData));
+			self.info(await self.__(I18NKeys.background.storages.settingGlobalData));
 			modules.storages.storageLocal = storageLocalCopy;
 			modules.storages.settingsStorage = settingsStorage;
 
@@ -1600,7 +1435,7 @@ export namespace Storages {
 					}
 				});
 
-				window.info(await window.__(I18NKeys.background.storages.buildingCrm));
+				self.info(await self.__(I18NKeys.background.storages.buildingCrm));
 			await modules.CRMNodes.updateCRMValues();
 
 			callback && callback();
@@ -1652,17 +1487,17 @@ export namespace Storages {
 	}
 	export function loadStorages() {
 		return new Promise<void>(async (resolve) => {
-			window.info(await window.__(I18NKeys.background.storages.loadingSync));
+			self.info(await self.__(I18NKeys.background.storages.loadingSync));
 			const storageSync: {
 				[key: string]: string
 			} & {
 				indexes: number|string[];
 			} = supportsStorageSync() ? await browserAPI.storage.sync.get() as any : {};
-			window.info(await window.__(I18NKeys.background.storages.loadingLocal));
+			self.info(await self.__(I18NKeys.background.storages.loadingLocal));
 			let storageLocal: CRM.StorageLocal & {
 				settings?: CRM.SettingsStorage;
 			} = await browserAPI.storage.local.get() as any;
-			window.info(await window.__(I18NKeys.background.storages.checkingFirst));
+			self.info(await self.__(I18NKeys.background.storages.checkingFirst));
 			const result = await isFirstTime(storageLocal);
 			if (result.type === 'firstTimeCallback') {
 				const data = await result.fn;
@@ -1674,7 +1509,7 @@ export namespace Storages {
 				if (result.type === 'upgradeVersion') {
 					storageLocal = result.storageLocal;
 				}
-				window.info(await window.__(I18NKeys.background.storages.parsingData));
+				self.info(await self.__(I18NKeys.background.storages.parsingData));
 				const storageLocalCopy = JSON.parse(JSON.stringify(storageLocal));
 				delete storageLocalCopy.globalExcludes;
 
@@ -1709,7 +1544,7 @@ export namespace Storages {
 					}
 				}
 
-				window.info(await window.__(I18NKeys.background.storages.checkingUpdates));
+				self.info(await self.__(I18NKeys.background.storages.checkingUpdates));
 				checkForStorageSyncUpdates(settingsStorage, storageLocal);
 
 				await setStorages(storageLocalCopy, settingsStorage,
@@ -2022,13 +1857,13 @@ window.open(url.replace(/%s/g,query), \'_blank\');
 		type: 'noChanges';
 	}> {				
 		const currentVersion = (await browserAPI.runtime.getManifest()).version;
-		if (localStorage.getItem('transferToVersion2') && storageLocal.lastUpdatedAt === currentVersion) {
+		if (storageLocal.lastUpdatedAt === currentVersion) {
 			return {
 				type: 'noChanges'
 			}
 		} else {
-			if (localStorage.getItem('transferToVersion2') && storageLocal.lastUpdatedAt) {
-				window.logAsync(window.__(I18NKeys.background.storages.upgrading, 
+			if (storageLocal.lastUpdatedAt) {
+				self.logAsync(self.__(I18NKeys.background.storages.upgrading, 
 					storageLocal.lastUpdatedAt, currentVersion));
 				const fns = await upgradeVersion(storageLocal.lastUpdatedAt, currentVersion);
 				fns.beforeSyncLoad.forEach((fn) => {
@@ -2042,26 +1877,16 @@ window.open(url.replace(/%s/g,query), \'_blank\');
 				}
 			}
 			//Determine if it's a transfer from CRM version 1.*
-			if (!window.localStorage.getItem('transferToVersion2') &&
-				window.localStorage.getItem('numberofrows') !== undefined &&
-				window.localStorage.getItem('numberofrows') !== null) {
-				window.log('Upgrading from version 1.0 to version 2.0');
-				return {
-					type: 'firstTimeCallback',
-					fn: SetupHandling.handleTransfer()
-				}
-			} else {
-				window.info(await window.__(I18NKeys.background.storages.initializingFirst));
-				return {
-					type: 'firstTimeCallback',
-					fn: SetupHandling.handleFirstRun()
-				}
+			self.info(await self.__(I18NKeys.background.storages.initializingFirst));
+			return {
+				type: 'firstTimeCallback',
+				fn: SetupHandling.handleFirstRun()
 			}
 		}
 	}
 	function checkForStorageSyncUpdates(storageSync: CRM.SettingsStorage, storageLocal: CRM.StorageLocal) {
 		const syncString = JSON.stringify(storageSync);
-		const hash = window.md5(syncString);
+		const hash = modules.Util.md5(syncString);
 
 		if (storageLocal.settingsVersionData && storageLocal.settingsVersionData.current.hash !== hash) {
 			//Data changed, show a message and update current hash

@@ -24,30 +24,30 @@ export namespace Global {
 			resources: null
 		},
 		background: {
-			byId: new window.Map()
+			byId: new Map()
 		},
 		crm: {
 			crmTree: [],
-			crmById: new window.Map(),
+			crmById: new Map(),
 			safeTree: [],
-			crmByIdSafe:new window.Map()
+			crmByIdSafe:new Map()
 		},
 		availablePermissions: [],
 		crmValues: {
-			tabData: new window.Map([[0, {
-				nodes: new window.Map(),
-				libraries: new window.Map()
+			tabData: new Map([[0, {
+				nodes: new Map(),
+				libraries: new Map()
 			}]]),
 			rootId: null,
-			contextMenuIds: new window.Map(),
-			nodeInstances: new window.Map(),
-			contextMenuInfoById: new window.Map(),
+			contextMenuIds: new Map(),
+			nodeInstances: new Map(),
+			contextMenuInfoById: new Map(),
 			contextMenuItemTree: [],
 			userAddedContextMenus: [],
-			userAddedContextMenusById: new window.Map(),
-			contextMenuGlobalOverrides: new window.Map(),
-			hideNodesOnPagesData: new window.Map(),
-			nodeTabStatuses: new window.Map()
+			userAddedContextMenusById: new Map(),
+			contextMenuGlobalOverrides: new Map(),
+			hideNodesOnPagesData: new Map(),
+			nodeTabStatuses: new Map()
 		},
 		toExecuteNodes: {
 			onUrl: {
@@ -87,8 +87,8 @@ export namespace Global {
 			}
 		},
 		eventListeners: {
-			notificationListeners: new window.Map(),
-			shortcutListeners: new window.Map(),
+			notificationListeners: new Map(),
+			shortcutListeners: new Map(),
 			scriptDebugListeners: []
 		},
 		logging: {

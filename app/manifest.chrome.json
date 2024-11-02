@@ -1,5 +1,5 @@
 {
-	"manifest_version": 2,
+	"manifest_version": 3,
 
 	"options_page": "html/options.html",
 	"name": "Custom Right-Click Menu",
@@ -10,48 +10,68 @@
 	"default_locale": "en",
 
 	"background": {
-		"page": "html/background.html"
+		"service_worker": "js/background.js",
+		"type": "module"
 	},
 
 	"content_scripts": [
 		{
-			"matches": [ "<all_urls>" ],
-			"js": [ "js/polyfills/browser.js", "js/contentscripts/contentscript.js" ]
-		}, {
+			"matches": ["*://*/*"],
+			"js": [
+				"js/polyfills/browser.js",
+				"js/contentscripts/contentscript.js"
+			]
+		},
+		{
 			"matches": ["http://userstyles.org/*", "https://userstyles.org/*"],
 			"run_at": "document_start",
 			"all_frames": true,
-			"js": [ "js/polyfills/browser.js", "js/contentscripts/userstyles.js" ]
-		  }, {
-			"matches": ["https://openusercss.org/*", "https://openusercss.com/*"],
+			"js": ["js/polyfills/browser.js", "js/contentscripts/userstyles.js"]
+		},
+		{
+			"matches": [
+				"https://openusercss.org/*",
+				"https://openusercss.com/*"
+			],
 			"run_at": "document_start",
 			"all_frames": false,
-			"js": [ "js/polyfills/browser.js", "js/contentscripts/openusercss.js" ]
-		  }, {
-			"matches": ["<all_urls>"],
+			"js": [
+				"js/polyfills/browser.js",
+				"js/contentscripts/openusercss.js"
+			]
+		},
+		{
+			"matches": ["*://*/*"],
 			"include_globs": ["*.user.css", "*.user.style"],
 			"run_at": "document_idle",
 			"all_frames": false,
-			"js": [ "js/polyfills/browser.js", "js/contentscripts/usercss.js" ]
-		  }
+			"js": ["js/polyfills/browser.js", "js/contentscripts/usercss.js"]
+		}
 	],
 
-	"content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self';",
+	"content_security_policy": {
+		"extension_pages": "script-src 'self'; object-src 'self';"
+	},
 
 	"permissions": [
-		"<all_urls>",
 		"activeTab",
 		"contextMenus",
 		"storage",
 		"tabs",
 		"unlimitedStorage"
 	],
+	"host_permissions": ["*://*/*"],
 
 	"web_accessible_resources": [
-		"js/jquery-2.0.3.js",
-		"js/crmapi.js",
-		"html/install.html",
-		"html/logging.html"
+		{
+			"resources": [
+				"js/jquery-2.0.3.js",
+				"js/crmapi.js",
+				"html/install.html",
+				"html/logging.html"
+			],
+			"matches": ["*://*/*"]
+		}
 	],
 
 	"optional_permissions": [
@@ -81,10 +101,8 @@
 		"system.storage",
 		"topSites",
 		"tabCapture",
-		"tts",
 		"webNavigation",
-		"webRequest",
-		"webRequestBlocking"
+		"webRequest"
 	],
 
 	"commands": {

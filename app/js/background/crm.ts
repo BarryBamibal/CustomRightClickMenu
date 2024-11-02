@@ -7,7 +7,8 @@ import { ModuleData } from "./moduleTypes";
 
 declare const browserAPI: browserAPI;
 declare const BrowserAPI: BrowserAPI;
-declare const window: BackgroundpageWindow;
+declare const self: BackgroundpageWindow;
+declare const chrome: typeof _chrome;
 
 export namespace CRMNodes.Script.Handler {
 	async function genCodeOnPage({		
@@ -215,8 +216,8 @@ export namespace CRMNodes.Script.Handler {
 			runAt === 'document_idle') {
 				newScript.runAt = runAt;
 			} else {
-				window.logAsync(
-					window.__(I18NKeys.background.crm.invalidRunat, 
+				self.logAsync(
+					self.__(I18NKeys.background.crm.invalidRunat, 
 						id + '', runAt));
 			}
 
@@ -242,7 +243,7 @@ export namespace CRMNodes.Script.Handler {
 						await browserAPI.tabs.executeScript(tabId, ensureRunAt(nodeId, script)).catch((err) => {
 							if (err.message.indexOf('Could not establish connection') === -1 &&
 								err.message.indexOf('closed') === -1) {
-									window.logAsync(window.__(I18NKeys.background.crm.executionFailed,
+									self.logAsync(self.__(I18NKeys.background.crm.executionFailed,
 										tabId, nodeId), err);
 							}
 						});
@@ -333,8 +334,8 @@ export namespace CRMNodes.Script.Handler {
 	}
 	export function genTabData(tabId: TabId, key: number[], nodeId: CRM.NodeId<CRM.ScriptNode>, script: string) {
 		modules.Util.setMapDefault(modules.crmValues.tabData, tabId, {
-			libraries: new window.Map(),
-			nodes: new window.Map()
+			libraries: new Map(),
+			nodes: new Map()
 		});
 		modules.Util.setMapDefault(modules.crmValues.tabData.get(tabId).nodes,
 			nodeId, []);
@@ -363,7 +364,7 @@ export namespace CRMNodes.Script.Handler {
 			} else {
 				const indentUnit = '	';
 
-				const [ contextData, { greaseMonkeyData, runAt }, script, tabIndex ] = await window.Promise.all<any>([
+				const [ contextData, { greaseMonkeyData, runAt }, script, tabIndex ] = await Promise.all<any>([
 					modules.Util.iipe<EncodedContextData>(async () => {
 						//If it was triggered by clicking, ask contentscript about some data
 						if (isAutoActivate) {
@@ -576,10 +577,10 @@ export namespace CRMNodes.Script.Background {
 			isRestart = true;
 
 			await modules.Logging.backgroundPageLog(node.id, null,
-				await window.__(I18NKeys.background.crm.restartingBackgroundPage));
+				await self.__(I18NKeys.background.crm.restartingBackgroundPage));
 			modules.background.byId.get(node.id).terminate();
 			modules.Logging.backgroundPageLog(node.id, null,
-				await window.__(I18NKeys.background.crm.terminatedBackgroundPage));
+				await self.__(I18NKeys.background.crm.terminatedBackgroundPage));
 		}
 
 		if (modules.background.byId.has(node.id)) {
@@ -601,7 +602,7 @@ export namespace CRMNodes.Script.Background {
 		}
 		if (err) {
 
-			window.logAsync(window.__(I18NKeys.background.crm.setupError, node.id), err);
+			self.logAsync(self.__(I18NKeys.background.crm.setupError, node.id), err);
 			throw err;
 		}
 
@@ -609,7 +610,7 @@ export namespace CRMNodes.Script.Background {
 		const [{
 			code: backgroundPageCode,
 			libraries
-		}, script, greaseMonkeyData ] = await window.Promise.all<any>([
+		}, script, greaseMonkeyData ] = await Promise.all<any>([
 			modules.Util.iipe<{
 				code: string[];
 				libraries: string[]
@@ -654,7 +655,7 @@ export namespace CRMNodes.Script.Background {
 				tabIndex: TabIndex;
 			}[] = [];
 			const allInstances = modules.crmValues.nodeInstances;
-			modules.Util.setMapDefault(allInstances, node.id, new window.Map());
+			modules.Util.setMapDefault(allInstances, node.id, new Map());
 			const nodeInstances = allInstances.get(node.id);
 			modules.Util.iterateMap(nodeInstances, (tabId) => {
 				try {
@@ -686,7 +687,7 @@ export namespace CRMNodes.Script.Background {
 		modules.Util.asyncIterateMap(modules.crm.crmById, async (_nodeId, node) => {
 			if (node.type === 'script' && node.value.backgroundScript.length > 0) {
 				if (isValidBackgroundPage(node)) {
-					window.info(await window.__(I18NKeys.background.crm.createdBackgroundPage,
+					self.info(await self.__(I18NKeys.background.crm.createdBackgroundPage,
 						node.id));
 				}
 				await createBackgroundPage(node);
@@ -747,14 +748,14 @@ export namespace CRMNodes.MetaTags {
 
 	const cachedData: Map<string, {
 		[key: string]: any;
-	}> = new window.Map<string, {
+	}> = new Map<string, {
 		[key: string]: any;
 	}>();
 
 	export function getMetaTags(code: string): {
 		[key: string]: string[];
 	} {
-		const hash = window.md5(code);
+		const hash = modules.Util.md5(code);
 		if (cachedData.has(hash)) {
 			return cachedData.get(hash);
 		}
@@ -1275,17 +1276,17 @@ export namespace CRMNodes.Script.Updating {
 								}
 
 							} catch (err) {
-								window.logAsync(window.__(I18NKeys.background.crm.updateDownload404,
+								self.logAsync(self.__(I18NKeys.background.crm.updateDownload404,
 									'script', node.id, node.name));
 							}
 							resolve(null);
 						}, () => {
-							window.logAsync(window.__(I18NKeys.background.crm.updateDownload404,
+							self.logAsync(self.__(I18NKeys.background.crm.updateDownload404,
 								'script', node.id, node.name));
 							resolve(null);
 						});
 					} catch (e) {
-						window.logAsync(window.__(I18NKeys.background.crm.updateDownload404,
+						self.logAsync(self.__(I18NKeys.background.crm.updateDownload404,
 							'script', node.id, node.name));
 						resolve(null);
 					}
@@ -1337,8 +1338,8 @@ export namespace CRMNodes.Running {
 			const tab = await browserAPI.tabs.get(tabId);
 			if (tab.url && modules.Util.canRunOnUrl(tab.url)) {
 				modules.crmValues.tabData.set(tab.id, {
-					libraries: new window.Map(),
-					nodes: new window.Map()
+					libraries: new Map(),
+					nodes: new Map()
 				});
 				modules.Logging.Listeners.updateTabAndIdLists();
 
@@ -1508,7 +1509,7 @@ export namespace CRMNodes.Stylesheet.Updating {
 						resolve(null);
 					}
 				}, () => {
-					window.logAsync(window.__(I18NKeys.background.crm.updateDownload404,
+					self.logAsync(self.__(I18NKeys.background.crm.updateDownload404,
 						'stylesheet', node.id, node.name));
 					resolve(null);
 				});
@@ -1565,7 +1566,7 @@ export namespace CRMNodes.Stylesheet.Options {
 		while ((match = _variableRegex.exec(stylesheet))) {
 			const name = match[1];
 			if (!(name in options)) {
-				window.logAsync(window.__(I18NKeys.background.crm.optionNotFound,
+				self.logAsync(self.__(I18NKeys.background.crm.optionNotFound,
 					name, id));
 				//Prevent it from matching again
 				stylesheet = stylesheet.replace(_variableRegex, `/*[${name}]*/`);
@@ -1761,11 +1762,11 @@ export namespace CRMNodes.Stylesheet.Options {
 		}
 	function compileLess(stylesheet: string, id: CRM.NodeId<CRM.StylesheetNode>): Promise<string> {
 		return new Promise<string>((resolve) => {
-			window.less.Parser().parse(stylesheet, (err, result) => {
+			self.less.Parser().parse(stylesheet, (err, result) => {
 				if (!err) {
 					resolve(result.toCSS());
 				} else {
-					window.logAsync(`${window.__(I18NKeys.background.crm.cssCompileError,
+					self.logAsync(`${self.__(I18NKeys.background.crm.cssCompileError,
 						'less', id)}:`, err.name, err.message);
 					resolve(stylesheet);;
 				}
@@ -1774,11 +1775,11 @@ export namespace CRMNodes.Stylesheet.Options {
 	}
 	function compileStylus(stylesheet: string, id: CRM.NodeId<CRM.StylesheetNode>): Promise<string> {
 		return new Promise<string>((resolve) => {
-			window.stylus(stylesheet).render((err, result) => {
+			self.stylus(stylesheet).render((err, result) => {
 				if (!err) {
 					resolve(result.trim());
 				} else {
-					window.logAsync(`${window.__(I18NKeys.background.crm.cssCompileError,
+					self.logAsync(`${self.__(I18NKeys.background.crm.cssCompileError,
 						'stylus', id)}:`, err.name, err.message);
 					resolve(stylesheet);;
 				}
@@ -2140,9 +2141,9 @@ export namespace CRMNodes.Stylesheet.Installing {
 			const metaTags = MetaTags.getMetaTags(code);
 			return {
 				sections: getUrls(code),
-				md5Url: window.md5(code),
+				md5Url: modules.Util.md5(code),
 				name: MetaTags.getMetaTag(metaTags, 'name') || 'Userstyle',
-				originalMd5: window.md5(code),
+				originalMd5: modules.Util.md5(code),
 				updateUrl: MetaTags.getMetaTag(metaTags, 'updateURL') || 
 					MetaTags.getMetaTag(metaTags, 'homepageURL') || undefined,
 				url: MetaTags.getMetaTag(metaTags, 'homepageURL'),
@@ -2356,7 +2357,7 @@ export namespace CRMNodes.NodeCreation {
 					}
 					modules.crmValues.nodeTabStatuses.set(node.id, {
 						defaultCheckedValue: node.value.defaultOn,
-						tabs: new window.Map()
+						tabs: new Map()
 					});
 					break;
 			}
@@ -2366,17 +2367,17 @@ export namespace CRMNodes.NodeCreation {
 			id: number|string;
 		}) {
 			if (options.documentUrlPatterns) {
-				window.logAsync(window.__(I18NKeys.background.crm.contextmenuErrorRetry), e);
+				self.logAsync(self.__(I18NKeys.background.crm.contextmenuErrorRetry), e);
 				delete options.documentUrlPatterns;
 				idHolder.id = await browserAPI.contextMenus.create(options, async () => {
 					idHolder.id = await browserAPI.contextMenus.create({
 						title: 'ERROR',
 						onclick: createOptionsPageHandler()
 					});
-					window.logAsync(window.__(I18NKeys.background.crm.contextmenuError), e);
+					self.logAsync(self.__(I18NKeys.background.crm.contextmenuError), e);
 				});
 			} else {
-				window.logAsync(window.__(I18NKeys.background.crm.contextmenuError), e);
+				self.logAsync(self.__(I18NKeys.background.crm.contextmenuError), e);
 			}
 		}
 	async function generateContextMenuItem(rightClickItemOptions: ContextMenuCreateProperties, idHolder: {
@@ -2384,8 +2385,8 @@ export namespace CRMNodes.NodeCreation {
 	}) {
 		try {
 			idHolder.id = await browserAPI.contextMenus.create(rightClickItemOptions, async () => {
-				if ((window as any).chrome && (window as any).chrome.runtime) {
-					const __chrome: typeof _chrome = (window as any).chrome;
+				if (chrome && chrome.runtime) {
+					const __chrome: typeof _chrome = chrome;
 					if (__chrome && __chrome.runtime && __chrome.runtime.lastError) {
 						await handleContextMenuError(rightClickItemOptions, __chrome.runtime.lastError, idHolder);
 					}
@@ -2543,7 +2544,7 @@ export namespace CRMNodes.TS {
 	async function compileChangedScript(script: string, 
 		compilationData: CRM.TypescriptCompilationData): Promise<CRM.TypescriptCompilationData> {
 			const { sourceHash } = compilationData;
-			const scriptHash = window.md5(script);
+			const scriptHash = modules.Util.md5(script);
 			if (scriptHash !== sourceHash) {
 				return {
 					compiled: await compileScript(script),
@@ -2553,23 +2554,23 @@ export namespace CRMNodes.TS {
 			return compilationData;
 		}
 	function captureTSDef() {
-		window.module = {
+		self.module = {
 			exports: {}
 		};
 		return Promise.resolve(() => {
-			const ts = window.module && window.module.exports;
-			window.ts = window.ts || ts;
-			window.module = undefined;
+			const ts = self.module && self.module.exports;
+			self.ts = self.ts || ts;
+			self.module = undefined;
 		});
 	}
 	async function compileScript(script: string): Promise<string> {
-		return new window.Promise<string>(async (resolve) => {
-			await window.withAsync(captureTSDef, async () => {
+		return new Promise<string>(async (resolve) => {
+			await self.withAsync(captureTSDef, async () => {
 				await modules.Util.execFile('js/libraries/typescript.js', 'ts');
 			});
-			resolve(window.ts.transpile(script, {
-				module: window.ts.ModuleKind.None,
-				target: window.ts.ScriptTarget.ES3,
+			resolve(self.ts.transpile(script, {
+				module: self.ts.ModuleKind.None,
+				target: self.ts.ScriptTarget.ES3,
 				noLib: true,
 				noResolve: true,
 				suppressOutputPathCheck: true
@@ -2683,16 +2684,15 @@ export namespace CRMNodes {
 		return newNode as CRM.SafeNode;
 	}
 	export function handleUserAddedContextMenuErrors() {
-		const __window = window as any;
-		if (__window.chrome && __window.chrome.runtime) {
-			const __chrome: typeof _chrome = __window.chrome;
+		if (chrome && chrome.runtime) {
+			const __chrome: typeof _chrome = chrome;
 			if (__chrome && __chrome.runtime && __chrome.runtime.lastError) {
-				window.logAsync(window.__(I18NKeys.background.crm.userContextmenuError),
+				self.logAsync(self.__(I18NKeys.background.crm.userContextmenuError),
 					__chrome.runtime.lastError)
 			}
 		} else {
 			if (browserAPI.runtime.lastError) {
-				window.logAsync(window.__(I18NKeys.background.crm.userContextmenuError),
+				self.logAsync(self.__(I18NKeys.background.crm.userContextmenuError),
 					browserAPI.runtime.lastError)
 			}
 		}
@@ -2718,7 +2718,7 @@ export namespace CRMNodes {
 	}
 	export function buildPageCRM() {
 		return new Promise<void>((resolve) => {
-			modules.crmValues.nodeTabStatuses = new window.Map();
+			modules.crmValues.nodeTabStatuses = new Map();
 			browserAPI.contextMenus.removeAll().then(async () => {
 				const contexts: CRM.ContentTypes[] = [];
 				modules.Util.crmForEach(modules.crm.crmTree, (node) => {
@@ -3011,8 +3011,8 @@ export namespace CRMNodes {
 	}
 
 	function buildByIdObjects() {
-		modules.crm.crmById = new window.Map();
-		modules.crm.crmByIdSafe = new window.Map();
+		modules.crm.crmById = new Map();
+		modules.crm.crmByIdSafe = new Map();
 		for (let i = 0; i < modules.crm.crmTree.length; i++) {
 			parseNode(modules.crm.crmTree[i]);
 			parseNode(modules.crm.safeTree[i] as any, true);

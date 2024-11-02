@@ -4,7 +4,7 @@ import { I18NKeys } from "../../_locales/i18n-keys.js";
 import { ModuleData } from "./moduleTypes";
 
 declare const browserAPI: browserAPI;
-declare const window: BackgroundpageWindow;
+declare const self: BackgroundpageWindow;
 
 export namespace Logging.LogExecution {
 	export function executeCRMCode(message: {
@@ -141,10 +141,10 @@ export namespace Logging {
 		const filter = modules.globalObject.globals.logging.filter;
 		if (filter.id !== null && nodeId === filter.id && filter.tabId !== null) {
 			if (tabId === '*' || tabId === filter.tabId) {
-				window.log.apply(console, args);
+				self.log.apply(console, args);
 			}
 		} else {
-			window.log.apply(console, args);
+			self.log.apply(console, args);
 		}
 	}
 	export async function backgroundPageLog(this: Window | typeof Logging, 
@@ -152,9 +152,9 @@ export namespace Logging {
 			sourceData = sourceData || [undefined, undefined];
 
 			const srcObjDetails = {
-				tabId: await window.__(I18NKeys.background.logging.background),
+				tabId: await self.__(I18NKeys.background.logging.background),
 				nodeTitle: modules.crm.crmById.get(id).name,
-				tabTitle: await window.__(I18NKeys.background.logging.backgroundPage),
+				tabTitle: await self.__(I18NKeys.background.logging.backgroundPage),
 				data: args,
 				lineNumber: sourceData[0],
 				logId: sourceData[1],
@@ -165,12 +165,12 @@ export namespace Logging {
 				id: id
 			} as any;
 			const logArgs = [
-				`${await window.__(I18NKeys.background.logging.backgroundPage)} [`, 
+				`${await self.__(I18NKeys.background.logging.backgroundPage)} [`, 
 					srcObj, ']: '
 			].concat(args);
 
 			Logging.log.bind(modules.globalObject, id, 
-				await window.__(I18NKeys.background.logging.background))
+				await self.__(I18NKeys.background.logging.background))
 					.apply(modules.globalObject, logArgs);
 
 			for (let key in srcObjDetails) {

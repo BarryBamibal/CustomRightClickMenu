@@ -3,7 +3,7 @@ import { I18NKeys } from "../../_locales/i18n-keys";
 import { ModuleData } from "./moduleTypes";
 
 declare const browserAPI: browserAPI;
-declare const window: BackgroundpageWindow;
+declare const self: BackgroundpageWindow;
 
 export namespace Resources {
 	export let modules: ModuleData;
@@ -23,7 +23,7 @@ export namespace Resources {
 		algorithm: string;
 		hash: string;
 	}) {
-		window.crypto.subtle.digest(name, data).then((hash) => {
+		self.crypto.subtle.digest(name, data).then((hash) => {
 			return String.fromCharCode.apply(null, hash) === lastMatchingHash.hash;
 		});
 	}
@@ -66,10 +66,10 @@ export namespace Resources {
 			return false;
 		}
 
-		const arrayBuffer = new window.TextEncoder('utf-8').encode(data);
+		const arrayBuffer = new self.TextEncoder('utf-8').encode(data);
 		switch (lastMatchingHash.algorithm) {
 			case 'md5':
-				return window.md5(data) === lastMatchingHash.hash;
+				return modules.Util.md5(data) === lastMatchingHash.hash;
 			case 'sha1':
 			case 'sha384':
 			case 'sha512':
@@ -119,7 +119,7 @@ export namespace Resources {
 		scriptId: CRM.NodeId<CRM.ScriptNode>;
 	}) {
 		return async () => {
-			window.info(await window.__(I18NKeys.background.init.resourceUpdate));
+			self.info(await self.__(I18NKeys.background.init.resourceUpdate));
 			compareResource(resourceKey);
 		};
 	}

@@ -2,8 +2,6 @@ import { ModuleData } from "./moduleTypes";
 import { BackgroundpageWindow } from './sharedTypes';
 import { EncodedString } from '../../elements/elements';
 
-declare const window: BackgroundpageWindow;
-
 export namespace Caches {
 	export let modules: ModuleData;
 	
@@ -36,7 +34,7 @@ export namespace Caches {
 		val: any;
 	}
 
-	const cachedData = new window.WeakMap<Function, CachedData[]>();
+	const cachedData = new WeakMap<Function, CachedData[]>();
 
 	function isArraySame(first: any[], second: any[]): boolean {
 		for (const i in first) {

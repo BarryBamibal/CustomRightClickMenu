@@ -126,7 +126,6 @@ interface Window {
 	Map: typeof MapPolyfill;
 }
 
-interface Map<K, V> extends MapPolyfill<K, V> { };
 interface CRMStore<N extends CRM.Node = CRM.Node> extends 
 	MapPolyfill<CRM.NodeId<N>|CRM.GenericNodeId, N> {
 		get<C extends CRM.Node>(key: CRM.NodeId<C>): C; 

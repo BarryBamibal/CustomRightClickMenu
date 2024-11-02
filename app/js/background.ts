@@ -7,6 +7,8 @@
 /// <reference path="crmapi.ts" />
 
 import { Init } from "./background/init.js";
+import './shared.js';
+import './polyfills/browser.js';
 
 (() => {
 	Init.init();

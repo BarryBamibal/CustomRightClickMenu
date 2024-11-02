@@ -4,7 +4,8 @@ import { BackgroundpageWindow, SandboxWorkerInterface } from './sharedTypes';
 import { EncodedString } from '../../elements/elements';
 import { CRMAPIMessage } from '../crmapi';
 
-declare const window: BackgroundpageWindow;
+declare const self: BackgroundpageWindow;
+declare const chrome: typeof _chrome;
 
 interface SandboxWorkerMessage {
 	data: {
@@ -30,7 +31,7 @@ export class SandboxWorker implements SandboxWorkerInterface {
 	worker: Worker = new Worker('/js/sandbox.js');
 	_callbacks: Function[] = [];
 	_verified: boolean = false;
-	_handler = window.createHandlerFunction({
+	_handler = self.createHandlerFunction({
 		postMessage: this._postMessage.bind(this)
 	});
 
@@ -69,7 +70,7 @@ export class SandboxWorker implements SandboxWorkerInterface {
 			case 'handshake':
 			case 'crmapi':
 				if (!this._verified) {
-					window.backgroundPageLog(this.id, null,
+					self.backgroundPageLog(this.id, null,
 						'Ininitialized background page');
 
 					this.worker.postMessage({
@@ -85,7 +86,7 @@ export class SandboxWorker implements SandboxWorkerInterface {
 				this._verifyKey(data, this._handler);
 				break;
 			case 'log':
-				window.backgroundPageLog.apply(window,
+				self.backgroundPageLog.apply(self,
 					[this.id, [data.lineNo, -1]].concat(JSON
 						.parse(data.data)));
 				break;
@@ -117,7 +118,7 @@ export class SandboxWorker implements SandboxWorkerInterface {
 		if (message.key.join('') === this.secretKey.join('')) {
 			callback(JSON.parse(message.data));
 		} else {
-			window.backgroundPageLog(this.id, null,
+			self.backgroundPageLog(this.id, null,
 				'Tried to send an unauthenticated message');
 		}
 	}
@@ -135,7 +136,7 @@ export namespace Sandbox {
 
 	function sandboxChromeFunction(fn: Function, context: any, args: any[], 
 		//@ts-ignore
-		window?: void, sandboxes?: void, chrome?: void, browser?: void,
+		self?: void, sandboxes?: void, chrome?: void, browser?: void,
 		//@ts-ignore
 		sandboxChromeFunction?: void, sandbox?: void, sandboxChrome?: any) {
 			return fn.apply(context, args);
@@ -228,9 +229,9 @@ export namespace Sandbox {
 		let context = {};
 		let fn: any;
 		if (base === 'browser') {
-			fn = window.browserAPI;
+			fn = self.browserAPI;
 		} else {
-			fn = (window as any).chrome;
+			fn = chrome;
 		}
 		const apiSplit = api.split('.');
 		try {
@@ -251,7 +252,7 @@ export namespace Sandbox {
 			}
 		}
 
-		if ('crmAPI' in window && window.crmAPI && '__isVirtual' in window) {
+		if ('crmAPI' in self && self.crmAPI && '__isVirtual' in self) {
 			return {
 				success: true,
 				result: sandboxVirtualChromeFunction(api, base, args)

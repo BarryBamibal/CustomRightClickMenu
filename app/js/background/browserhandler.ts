@@ -3,6 +3,7 @@ import { ModuleData } from "./moduleTypes";
 import { CRMAPIMessageInstance, UserAddedContextMenu } from './sharedTypes';
 
 declare const browserAPI: browserAPI;
+declare const chrome: typeof _chrome;
 
 export namespace BrowserHandler.ChromeAPIs {
 	function checkFirstRuntimeArg(message: ChromeAPIMessage|BrowserAPIMessage, expectedType: string, name: string) {
@@ -418,7 +419,7 @@ export namespace BrowserHandler {
 		}
 
 		try {
-			let { success, result } = 'crmAPI' in window && window.crmAPI && '__isVirtual' in window ?
+			let { success, result } = 'crmAPI' in self && self.crmAPI && '__isVirtual' in self ?
 				await modules.Sandbox.sandboxVirtualChromeFunction(message.api, message.type, message.args) :
 				modules.Sandbox.sandboxChrome(message.api, message.type, params);
 			if (!success) {
@@ -496,11 +497,11 @@ export namespace BrowserHandler {
 	function createChromeFnCallbackHandler(message: ChromeAPIMessage|BrowserAPIMessage,
 		callbackIndex: number) {
 			return (...params: any[]) => {
-				if ((window as any).chrome && (window as any).chrome.runtime && 
-					(window as any).chrome.runtime.lastError) {
+				if (chrome && chrome.runtime && 
+					chrome.runtime.lastError) {
 						modules.APIMessaging.CRMMessage.respond(message, 'success', {
 							callbackId: callbackIndex,
-							lastError: (window as any).chrome.runtime.lastError,
+							lastError: chrome.runtime.lastError,
 							params: params
 						});
 					} else {

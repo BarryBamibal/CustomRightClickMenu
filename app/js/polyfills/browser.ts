@@ -19,6 +19,7 @@ declare global {
 	}
 }
 
+const global = typeof window !== 'undefined' ? window : self;
 namespace BrowserAPINS {
 	interface AllBrowserAPIsWindow extends Window {
 		browser: typeof _browser;
@@ -33,7 +34,7 @@ namespace BrowserAPINS {
 	// 	and callback-style APIs under the (probably temporary) "chrome" global
 	// So if browser is Edge, use "browser", otherwise use "chrome" if available
 	// 	to ensure always always getting callback-style APIs
-	const apisWindow = window as unknown as AllBrowserAPIsWindow;
+	const apisWindow = global as unknown as AllBrowserAPIsWindow;
 	const __srcBrowser: typeof _chrome = apisWindow.StyleMedia ?
 		(apisWindow.browser as any) : apisWindow.chrome;
 	function checkReject(reject: (err: _chrome.runtime.LastError) => void) {
@@ -113,8 +114,8 @@ namespace BrowserAPINS {
 			}
 		};
 	}
-	const browserAPIExists = 'browser' in window;
-	const chromeAPIExists = 'chrome' in window;
+	const browserAPIExists = 'browser' in global;
+	const chromeAPIExists = 'chrome' in global;
 	export function isBrowserAPISupported(api: 'browser' | 'chrome'): boolean {
 		if (api === 'browser') {
 			return browserAPIExists;
@@ -139,7 +140,7 @@ namespace BrowserAPINS {
 	}
 	let _browserUserAgent: 'chrome' | 'firefox' | 'edge' | 'opera' | 'node' = null;
 	function getBrowserUserAgent() {
-		const win = window as MultiBrowserWindow;
+		const win = global as MultiBrowserWindow;
 		const isOpera = (!!win.opr && !!win.opr.addons) || !!win.opera || navigator.userAgent.indexOf(' OPR/') >= 0;
 		if (typeof win.InstallTrigger !== 'undefined') {
 			return 'firefox';
@@ -441,8 +442,7 @@ namespace BrowserAPINS {
 							handler.__resolve(undefined);
 						}
 					});
-					if (retVal && typeof window !== 'undefined' &&
-						window.Promise && retVal instanceof window.Promise) {
+					if (retVal && retVal instanceof Promise) {
 						retVal.then(handler.__resolve, handler.__reject);
 					}
 				});
@@ -806,32 +806,32 @@ declare global {
 	}
 }
 
-window.BrowserAPIInstances = window.BrowserAPIInstances || [];
-window.BrowserAPIInstances.push(BrowserAPINS);
+global.BrowserAPIInstances = global.BrowserAPIInstances || [];
+global.BrowserAPIInstances.push(BrowserAPINS);
 
-if (!window.browserAPI || window.__isVirtual) {
-	// Force override of window.browser if browser is edge or if no "browser"
+if (!global.browserAPI || global.__isVirtual) {
+	// Force override of global.browser if browser is edge or if no "browser"
 	//	global exists already. Basically equal to 
-	// 	window.browser = BrowserAPI.polyfill || window.browser  	&
-	// 	if getBrowser() === 'edge': window.browser = BrowserAPI.polyfill
-	window.BrowserAPINS = window.BrowserAPI = BrowserAPINS;
-	window.browserAPI = (BrowserAPINS.getBrowser() === 'edge' || !(window as any).browser) ?
+	// 	global.browser = BrowserAPI.polyfill || global.browser  	&
+	// 	if getBrowser() === 'edge': global.browser = BrowserAPI.polyfill
+	global.BrowserAPINS = global.BrowserAPI = BrowserAPINS;
+	global.browserAPI = (BrowserAPINS.getBrowser() === 'edge' || !(global as any).browser) ?
 		{...BrowserAPINS.polyfill as typeof BrowserAPI.polyfill, ...{
 			__isProxied: true
-		}} : (window as any).browser;
+		}} : (global as any).browser;
 
 	type MenusBrowserAPI = typeof BrowserAPI.polyfill & {
 		menus?: (typeof BrowserAPI.polyfill)['contextMenus']
 	};
-	const menusBrowserAPI = window.browserAPI as MenusBrowserAPI;
+	const menusBrowserAPI = global.browserAPI as MenusBrowserAPI;
 	if (!menusBrowserAPI.contextMenus) {
 		menusBrowserAPI.contextMenus = menusBrowserAPI.menus;
 	} else if (!menusBrowserAPI.menus) {
 		menusBrowserAPI.menus = menusBrowserAPI.contextMenus;
 	}
 }
-const BrowserAPI = window.BrowserAPINS;
-const browserAPI = window.browserAPI as typeof BrowserAPI.polyfill;
+const BrowserAPI = global.BrowserAPINS;
+const browserAPI = global.browserAPI as typeof BrowserAPI.polyfill;
 declare global {
 	type browserAPI = typeof BrowserAPI.polyfill;
 	type BrowserAPI = typeof BrowserAPINS;

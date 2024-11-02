@@ -1,5 +1,5 @@
-import {ModuleData, StorageModules, Modules } from "./moduleTypes";
-import { BackgroundpageWindow, GlobalObject } from './sharedTypes';
+import { ModuleData, StorageModules, Modules } from "./moduleTypes";
+import { BackgroundpageWindow, GlobalObject } from "./sharedTypes";
 import { GlobalDeclarations } from "./global-declarations.js";
 import { MessageHandling } from "./messagehandling.js";
 import { CRMAPIFunctions } from "./crmapifunctions.js";
@@ -19,7 +19,7 @@ import { Info } from "./info.js";
 import { Util } from "./util.js";
 
 declare const browserAPI: browserAPI;
-declare const window: BackgroundpageWindow;
+declare const self: BackgroundpageWindow;
 
 export namespace Init {
 	let modules: ModuleData;
@@ -35,19 +35,28 @@ export namespace Init {
 	}
 
 	function isNode() {
-		return typeof location === 'undefined' || typeof location.host === 'undefined';
+		return (
+			typeof location === "undefined" ||
+			typeof location.host === "undefined"
+		);
 	}
 
 	async function genStorageModules(): Promise<StorageModules> {
-		const isDev = (await browserAPI.runtime.getManifest()).short_name.indexOf('dev') > -1;
-		const globalObject: GlobalObject = isNode() || isDev ?
-			window : {};
+		const isDev =
+			(await browserAPI.runtime.getManifest()).short_name.indexOf("dev") >
+			-1;
+		const globalObject: GlobalObject = isNode() || isDev ? self : {};
 		const globals = Global.globals;
 		globalObject.globals = globals;
 
 		const {
-			crm, storages, crmValues, constants,
-			listeners, background, toExecuteNodes
+			crm,
+			storages,
+			crmValues,
+			constants,
+			listeners,
+			background,
+			toExecuteNodes,
 		} = globals;
 		return {
 			crm,
@@ -57,8 +66,8 @@ export namespace Init {
 			listeners,
 			background,
 			toExecuteNodes,
-			globalObject
-		}
+			globalObject,
+		};
 	}
 
 	function genModulesObject(): Modules {
@@ -76,17 +85,17 @@ export namespace Init {
 			Sandbox,
 			Storages,
 			URLParsing,
-			Util
-		}
+			Util,
+		};
 	}
 
 	async function genModulesData(): Promise<ModuleData> {
-		return {...await genStorageModules(), ...genModulesObject()}
+		return { ...(await genStorageModules()), ...genModulesObject() };
 	}
 
 	async function initModules() {
 		const moduleData = await genModulesData();
-		
+
 		APIMessaging.initModule(moduleData);
 		BrowserHandler.initModule(moduleData);
 		Caches.initModule(moduleData);
@@ -107,102 +116,143 @@ export namespace Init {
 	async function initRoutine() {
 		Info.init();
 
-		window.console.group(await window.__(I18NKeys.background.init.initialization));
-		window.console.group(await window.__(I18NKeys.background.init.storage));
+		console.group(await self.__(I18NKeys.background.init.initialization));
+		console.group(await self.__(I18NKeys.background.init.storage));
 		await Util.iipe(async () => {
 			await Storages.loadStorages();
-			window.console.groupEnd();
+			console.groupEnd();
 			try {
-				modules.globalObject.globals.latestId = 
+				modules.globalObject.globals.latestId =
 					modules.storages.settingsStorage.latestId;
-				window.info(await window.__(I18NKeys.background.init.registeringPermissionListeners));
+				self.info(
+					await self.__(
+						I18NKeys.background.init.registeringPermissionListeners
+					)
+				);
 				await GlobalDeclarations.refreshPermissions();
-				window.info(await window.__(I18NKeys.background.init.registeringHandler));
+				self.info(
+					await self.__(I18NKeys.background.init.registeringHandler)
+				);
 				GlobalDeclarations.setHandlerFunction();
 				browserAPI.runtime.onConnect.addListener((port) => {
-					port.onMessage.addListener(window.createHandlerFunction(port));
+					port.onMessage.addListener(
+						self.createHandlerFunction(port)
+					);
 				});
-				browserAPI.runtime.onMessage.addListener(MessageHandling.handleRuntimeMessageInitial);
-				window.info(await window.__(I18NKeys.background.init.buildingCrm));
+				browserAPI.runtime.onMessage.addListener(
+					MessageHandling.handleRuntimeMessageInitial
+				);
+				self.info(await self.__(I18NKeys.background.init.buildingCrm));
 				await CRMNodes.buildPageCRM();
-				window.info(await window.__(I18NKeys.background.init.compilingTs));
+				self.info(await self.__(I18NKeys.background.init.compilingTs));
 				await CRMNodes.TS.compileAllInTree();
-				window.console.groupCollapsed(
-					await window.__(I18NKeys.background.init.previousOpenTabs));
+				console.groupCollapsed(
+					await self.__(I18NKeys.background.init.previousOpenTabs)
+				);
 				await GlobalDeclarations.restoreOpenTabs();
-				window.console.groupEnd();
-				window.console.groupCollapsed(
-					await window.__(I18NKeys.background.init.backgroundpages));
+				console.groupEnd();
+				console.groupCollapsed(
+					await self.__(I18NKeys.background.init.backgroundpages)
+				);
 				await CRMNodes.Script.Background.createBackgroundPages();
-				window.console.groupEnd();
-				window.info(await window.__(I18NKeys.background.init.registeringHandlers));
+				console.groupEnd();
+				self.info(
+					await self.__(I18NKeys.background.init.registeringHandlers)
+				);
 				GlobalDeclarations.init();
 
 				//Checks if all values are still correct
-				window.console.group(await window.__(I18NKeys.background.init.resources));
-				window.info(await window.__(I18NKeys.background.init.updatingResources));
+				console.group(
+					await self.__(I18NKeys.background.init.resources)
+				);
+				self.info(
+					await self.__(I18NKeys.background.init.updatingResources)
+				);
 				Resources.updateResourceValues();
-				window.info(await window.__(I18NKeys.background.init.updatingNodes));
+				self.info(
+					await self.__(I18NKeys.background.init.updatingNodes)
+				);
 				//Dont' wait for them but do them in order
 				(async () => {
-					await CRMNodes.Script.Updating.updateScripts()
+					await CRMNodes.Script.Updating.updateScripts();
 					await CRMNodes.Stylesheet.Updating.updateStylesheets();
 				})();
-				window.setInterval(() => {
+				setInterval(() => {
 					(async () => {
-						window.info(await window.__(I18NKeys.background.init.updatingNodes));
-						await CRMNodes.Script.Updating.updateScripts()
+						self.info(
+							await self.__(
+								I18NKeys.background.init.updatingNodes
+							)
+						);
+						await CRMNodes.Script.Updating.updateScripts();
 						await CRMNodes.Stylesheet.Updating.updateStylesheets();
 					})();
 				}, 6 * 60 * 60 * 1000);
-				window.console.groupEnd();
+				console.groupEnd();
 
 				//Debugging data
-				window.console.groupCollapsed(
-					await window.__(I18NKeys.background.init.debugging));
-				window.info(await window.__(I18NKeys.background.init.debugInfo));
-				window.info(await window.__(I18NKeys.background.init.invalidatedTabs),
-					modules.storages.failedLookups);
-				window.info(await window.__(I18NKeys.background.init.insufficientPermissions),
-					modules.storages.insufficientPermissions);
-				window.console.groupEnd();
+				console.groupCollapsed(
+					await self.__(I18NKeys.background.init.debugging)
+				);
+				self.info(await self.__(I18NKeys.background.init.debugInfo));
+				self.info(
+					await self.__(I18NKeys.background.init.invalidatedTabs),
+					modules.storages.failedLookups
+				);
+				self.info(
+					await self.__(
+						I18NKeys.background.init.insufficientPermissions
+					),
+					modules.storages.insufficientPermissions
+				);
+				console.groupEnd();
 
-				window.info(await window.__(I18NKeys.background.init.registeringConsoleInterface));
+				self.info(
+					await self.__(
+						I18NKeys.background.init.registeringConsoleInterface
+					)
+				);
 				GlobalDeclarations.initGlobalFunctions();
 
-				if (location.href.indexOf('test') > -1) {
+				if (location.href.indexOf("test") > -1) {
 					modules.globalObject.Storages = Storages;
 				}
 				if (isNode()) {
 					modules.globalObject.TransferFromOld =
 						Storages.SetupHandling.TransferFromOld;
 				}
-				
+
 				for (let i = 0; i < 5; i++) {
-					window.console.groupEnd();
+					console.groupEnd();
 				}
 
-				window.info(await window.__(I18NKeys.background.init.done));
+				self.info(await self.__(I18NKeys.background.init.done));
 				if (!isNode()) {
-					window.log('');
-					window.logAsync(window.__(I18NKeys.background.init.loggingExplanation,
-						browserAPI.runtime.getURL('html/logging.html')));
-					window.logAsync(window.__(I18NKeys.background.init.debugExplanation));
+					self.log("");
+					self.logAsync(
+						self.__(
+							I18NKeys.background.init.loggingExplanation,
+							browserAPI.runtime.getURL("html/logging.html")
+						)
+					);
+					self.logAsync(
+						self.__(I18NKeys.background.init.debugExplanation)
+					);
 				}
 			} catch (e) {
 				for (let i = 0; i < 10; i++) {
-					window.console.groupEnd();
+					console.groupEnd();
 				}
 
-				window.log(e);
-				window.console.trace();
+				self.log(e);
+				console.trace();
 				throw e;
 			}
 		});
 	}
 
 	function setGlobals() {
-		window.logging = modules.globalObject.globals.logging;
-		window.backgroundPageLog = modules.Logging.backgroundPageLog;
+		self.logging = modules.globalObject.globals.logging;
+		self.backgroundPageLog = modules.Logging.backgroundPageLog;
 	}
 }

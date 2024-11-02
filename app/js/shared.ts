@@ -4,7 +4,8 @@ import { Polymer } from '../../tools/definitions/polymer';
 
 declare const BrowserAPI: BrowserAPI;
 declare const browserAPI: browserAPI;
-declare const window: SharedWindow;
+
+const global = (typeof window !== 'undefined' ? window : self) as unknown as SharedWindow;
 
 export interface PromiseConstructor<T = {}> {
 	constructor(initializer: (resolve: (result: T) => void, reject: (reason: any) => void) => Promise<T>): Promise<T>;
@@ -76,8 +77,10 @@ interface I18NElement {
 }
 
 declare global {
+	class Map<K, V> extends MapPolyfill<K, V> {
+
+	}
 	interface Window {
-		Promise: typeof Promise;
 		onExists<T extends keyof C, C = Window>(key: T, container?: C): PromiseLike<C[T]>;
 		onExistsChain<C, T1 extends keyof C, T2 extends keyof C[T1], 
 			T3 extends keyof C[T1][T2], T4 extends keyof C[T1][T2][T3], 
@@ -176,7 +179,7 @@ export type SharedWindow = Window & {
 };
 
 (() => {
-	if (window.onExists) {
+	if (global.onExists) {
 		return;
 	}
 
@@ -252,19 +255,18 @@ export type SharedWindow = Window & {
 		}
 	}
 
-	window.onExists = <T extends keyof C, C = Window>(key: T, container?: C): PromiseLike<C[T]> => {
+	global.onExists = <T extends keyof C, C = Window>(key: T, container?: C): PromiseLike<C[T]> => {
 		if (!container) {
-			container = window as any;
+			container = global as any;
 		}
-		const prom = (window.Promise || RoughPromise) as any;
-		return new prom((resolve: (result: C[T]) => void) => {
+		return new Promise((resolve: (result: C[T]) => void) => {
 			if (key in container && !isUndefined(container[key])) {
 				resolve(container[key]);
 				return;
 			}
-			const interval = window.setInterval(() => {
+			const interval = setInterval(() => {
 				if (key in container && !isUndefined(container[key])) {
-					window.clearInterval(interval);
+					clearInterval(interval);
 					resolve(container[key]);
 				}
 			}, 50);
@@ -332,23 +334,11 @@ export type SharedWindow = Window & {
 					return location.protocol === 'http:' || location.protocol === 'https:';
 				}
 		
-				private static _loadFile(name: string): Promise<string> {
-					return new window.Promise((resolve, reject) => {
-						const xhr: XMLHttpRequest = new window.XMLHttpRequest();
-						const url = this._isWebPageEnv() ? `../${name}` :
-							browserAPI.runtime.getURL(name);
-						xhr.open('GET', url);
-						xhr.onreadystatechange = () => {
-							if (xhr.readyState === window.XMLHttpRequest.DONE) {
-								if (xhr.status === 200) {
-									resolve(xhr.responseText);
-								} else {
-									reject(new Error('Failed XHR'));
-								}
-							}
-						}
-						xhr.send();
-					});
+				private static async _loadFile(name: string): Promise<string> {
+					const url = this._isWebPageEnv() ? `../${name}` :
+						browserAPI.runtime.getURL(name);
+					const res = await fetch(url);
+					return res.text();
 				}
 	
 				private static _parseLang(str: string): LangFile {
@@ -409,7 +399,7 @@ export type SharedWindow = Window & {
 			}
 	
 			async fetchLang() {
-				await window.onExists('browserAPI');
+				await global.onExists('browserAPI');
 				const { lang } = await browserAPI.storage.local.get('lang') as {
 					lang?: LANGS;
 				};
@@ -526,7 +516,7 @@ export type SharedWindow = Window & {
 		__.SUPPORTED_LANGS = Lang.SUPPORTED_LANGS;
 		__.addListener = langInstance.addLanguageChangeListener.bind(langInstance);
 		__.ready = () => langInstance.ready;
-		window.__ = __;
+		global.__ = __;
 
 		class ElementI18nManager {
 			static instance = langInstance;
@@ -588,7 +578,7 @@ export type SharedWindow = Window & {
 		const prevReady = objectified.ready;
 		addI18nHook(objectified);
 
-		window.Polymer({...objectified, ...{
+		global.Polymer({...objectified, ...{
 			ready(this: Polymer.InitializerProperties & Polymer.PolymerElement) {
 				this.classList.add(`browser-${BrowserAPI.getBrowser()}`);
 				if (prevReady && typeof prevReady === 'function') {
@@ -598,14 +588,14 @@ export type SharedWindow = Window & {
 		}});
 	}
 
-	window.withAsync = async <T>(initializer: () => Promise<Withable>, fn: () => Promise<T>): Promise<T> => {
+	global.withAsync = async <T>(initializer: () => Promise<Withable>, fn: () => Promise<T>): Promise<T> => {
 		const toRun = await initializer();
 		const res = await fn();
 		await toRun();
 		return res;
 	}
 	
-	window.with = <T>(initializer: () => Withable, fn: () => T): T => {
+	global.with = <T>(initializer: () => Withable, fn: () => T): T => {
 		const toRun = initializer();
 		const res = fn();
 		toRun();
@@ -622,10 +612,10 @@ export type SharedWindow = Window & {
 
 	let _supportsFlexUnprefixed: boolean = null;
 	let _supportsTransformUnprefixed: boolean = 
-		window.getComputedStyle && 
-		'transform' in window.getComputedStyle(document.documentElement, '');
+		global.getComputedStyle && 
+		'transform' in global.getComputedStyle(document.documentElement, '');
 
-	window.setDisplayFlex = (el: HTMLElement|SVGElement) => {
+	global.setDisplayFlex = (el: HTMLElement|SVGElement) => {
 		if (_supportsFlexUnprefixed === null) {
 			_supportsFlexUnprefixed = 
 				propertyPersists('display', 'flex');
@@ -638,7 +628,7 @@ export type SharedWindow = Window & {
 		}
 	}
 
-	window.setTransform = (el: HTMLElement|SVGElement, value: string) => {
+	global.setTransform = (el: HTMLElement|SVGElement, value: string) => {
 		if (_supportsTransformUnprefixed) {
 			el.style.transform = value;
 		} else {
@@ -728,7 +718,7 @@ export type SharedWindow = Window & {
 		return retVal;
 	}
 
-	window.animateTransform = (el: HTMLElement, properties: {
+	global.animateTransform = (el: HTMLElement, properties: {
 		propName: string;
 		postfix?: string;
 		from: number;
@@ -779,29 +769,27 @@ export type SharedWindow = Window & {
 
 
 	if (typeof Event !== 'undefined' && location.href.indexOf('background.html') === -1) {
-		window.onExists('Promise').then(() => {
-			window.onExists('Polymer').then(() => {
-				window.objectify = objectify;
-				window.register = register;
-				const event = new Event('RegisterReady');
-				window.dispatchEvent(event);
-			});
+		global.onExists('Polymer').then(() => {
+			global.objectify = objectify;
+			global.register = register;
+			const event = new Event('RegisterReady');
+			global.dispatchEvent(event);
 		});
 	}
 
-	window.onExistsChain = <C, T1 extends keyof C, T2 extends keyof C[T1], 
+	global.onExistsChain = <C, T1 extends keyof C, T2 extends keyof C[T1], 
 		T3 extends keyof C[T1][T2], T4 extends keyof C[T1][T2][T3], 
 		T5 extends keyof C[T1][T2][T3][T4]>(container: C,
 			key1: T1, key2?: T2, key3?: T3, key4?: T4, key5?: T5): PromiseLike<C[T1][T2][T3][T4][T5]>|
 				PromiseLike<C[T1][T2][T3][T4]>|PromiseLike<C[T1][T2][T3]>|PromiseLike<C[T1][T2]>|PromiseLike<C[T1]> => {
-					const prom = (window.Promise || RoughPromise) as any;
+					const prom = (global.Promise || RoughPromise) as any;
 					return new prom((resolve: (result: C[T1][T2][T3][T4]) => void) => {
 						let state: any = container;
 						const keys = [key1, key2, key3, key4, key5];
 						RoughPromise.chain(keys.filter(key => !!key).map((key) => {
 							return () => {
 								return new prom((resolveInner: (result: any) => void) => {
-									window.onExists(key as keyof typeof state, state).then((result) => {
+									global.onExists(key as keyof typeof state, state).then((result) => {
 										state = result;
 										resolveInner(result);
 									});

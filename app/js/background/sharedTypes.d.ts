@@ -256,7 +256,7 @@ interface MessageLogging {
 	};
 }
 
-type BackgroundpageWindow = Window & SharedWindow & {
+type BackgroundpageWindow = SharedWindow & {
 	logging?: MessageLogging;
 	isDev: boolean;
 	createHandlerFunction: (port: {
@@ -279,7 +279,6 @@ type BackgroundpageWindow = Window & SharedWindow & {
 	_listenTabs: (listener: (newTabs: TabData[]) => void) => void;
 	_listenLog: (listener: LogListener,
 		callback: (result: LogListenerObject) => void) => LogListenerLine[];
-	XMLHttpRequest: any;
 	setTimeout(callback: () => void, time: number): void;
 	TextEncoder: any;
 	getID: (name: string) => void;

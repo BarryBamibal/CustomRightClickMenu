@@ -6,7 +6,6 @@ import { BackgroundpageWindow, ContextMenuOverrides, ContextMenuUpdateProperties
 
 declare const browserAPI: browserAPI;
 declare const BrowserAPI: BrowserAPI;
-declare const window: BackgroundpageWindow;
 
 export namespace CRMAPIFunctions {
 	export let modules: ModuleData;
@@ -45,7 +44,7 @@ export namespace CRMAPIFunctions.contextMenuItem {
 			if (!allTabs) {
 				if (!modules.crmValues.nodeTabStatuses.has(nodeId)) {
 					modules.crmValues.nodeTabStatuses.set(nodeId, {
-						tabs: new window.Map<CRM.GenericNodeId, {
+						tabs: new Map<CRM.GenericNodeId, {
 							checked?: boolean;
 							overrides?: ContextMenuOverrides;
 						}>([[tabId, {
@@ -1690,7 +1689,7 @@ export namespace CRMAPIFunctions.crm.background {
 
 		//Get results from tab query
 		const queriedTabs = await queryTabs(options) || [];
-		const tabIdTabs = await window.Promise.all((tabIds || []).map((tabId) => {
+		const tabIdTabs = await Promise.all((tabIds || []).map((tabId) => {
 			return browserAPI.tabs.get(tabId);
 		}));
 		const node = __this.getNodeFromId(id, false, true);

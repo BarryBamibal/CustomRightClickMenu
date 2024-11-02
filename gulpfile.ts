@@ -1113,8 +1113,6 @@ class Tasks {
 										'images/whitearrow.png',
 										'images/country_flags/**/*',
 										'_locales/**/*',
-										'js/libraries/jsonfn.js',
-										'js/libraries/md5.js',
 										'js/libraries/jquery/jquery-3.3.1.js',
 										'icon-large.png',
 										'icon-small.png',

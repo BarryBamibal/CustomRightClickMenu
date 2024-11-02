@@ -6,7 +6,8 @@ import { BrowserHandler } from "./browserhandler.js";
 import { ModuleData } from "./moduleTypes";
 
 declare const browserAPI: browserAPI;
-declare const window: BackgroundpageWindow;
+declare const self: BackgroundpageWindow;
+declare const chrome: typeof _chrome;
 
 export namespace GlobalDeclarations {
 	export let modules: ModuleData;
@@ -17,10 +18,10 @@ export namespace GlobalDeclarations {
 
 	export function initGlobalFunctions() {
 		const findNodeMsg = 'you can find it by' + 
-		' calling window.getID("nodename") where nodename is the name of your' +
+		' calling self.getID("nodename") where nodename is the name of your' +
 		' node';
 
-		window.debugNextScriptCall = (id: CRM.NodeId<CRM.ScriptNode>) => {
+		self.debugNextScriptCall = (id: CRM.NodeId<CRM.ScriptNode>) => {
 			if (id !== 0 && !id || typeof id !== 'number') {
 				throw new Error(`Please supply a valid node ID, ${findNodeMsg}`);
 			}
@@ -40,7 +41,7 @@ export namespace GlobalDeclarations {
 			}
 		}
 
-		window.debugBackgroundScript = (id: CRM.NodeId<CRM.ScriptNode>) => {
+		self.debugBackgroundScript = (id: CRM.NodeId<CRM.ScriptNode>) => {
 			if (id !== 0 && !id || typeof id !== 'number') {
 				throw new Error(`Please supply a valid node ID, ${findNodeMsg}`);
 			}
@@ -58,7 +59,7 @@ export namespace GlobalDeclarations {
 				modules.crm.crmById.get(id), true);
 		}
 		
-		window.getID = (searchedName: string) => {
+		self.getID = (searchedName: string) => {
 			searchedName = searchedName.toLowerCase();
 			const matches: {
 				id: CRM.GenericNodeId;
@@ -78,27 +79,27 @@ export namespace GlobalDeclarations {
 			});
 
 			if (matches.length === 0) {
-				window.logAsync(window.__(I18NKeys.background.globalDeclarations.getID.noMatches));
+				self.logAsync(self.__(I18NKeys.background.globalDeclarations.getID.noMatches));
 			} else if (matches.length === 1) {
-				window.logAsync(window.__(I18NKeys.background.globalDeclarations.getID.oneMatch,
+				self.logAsync(self.__(I18NKeys.background.globalDeclarations.getID.oneMatch,
 					matches[0].id), matches[0].node);
 			} else {
-				window.logAsync(window.__(I18NKeys.background.globalDeclarations.getID.multipleMatches));
+				self.logAsync(self.__(I18NKeys.background.globalDeclarations.getID.multipleMatches));
 				matches.forEach((match) => {
-					window.logAsync(`${window.__(I18NKeys.crm.id)}:`, match.id, 
-						`, ${window.__(I18NKeys.crm.node)}:`, match.node);
+					self.logAsync(`${self.__(I18NKeys.crm.id)}:`, match.id, 
+						`, ${self.__(I18NKeys.crm.node)}:`, match.node);
 				});
 			}
 		};
 
-		window.filter = (nodeId: CRM.GenericNodeId | string, tabId: string | TabId | void) => {
+		self.filter = (nodeId: CRM.GenericNodeId | string, tabId: string | TabId | void) => {
 			modules.globalObject.globals.logging.filter = {
 				id: ~~nodeId as CRM.GenericNodeId,
 				tabId: tabId !== undefined ? ~~tabId : null
 			};
 		};
 
-		window._listenIds = (listener: (ids: {
+		self._listenIds = (listener: (ids: {
 			id: CRM.GenericNodeId;
 			title: string;
 		}[]) => void) => {
@@ -108,7 +109,7 @@ export namespace GlobalDeclarations {
 			});
 		};
 
-		window._listenTabs = (listener: (tabs: TabData[]) => void) => {
+		self._listenTabs = (listener: (tabs: TabData[]) => void) => {
 			modules.Logging.Listeners.updateTabAndIdLists().then(({tabs}) => {
 				listener(tabs);
 				modules.listeners.tabs.push(listener);
@@ -189,7 +190,7 @@ export namespace GlobalDeclarations {
 				return getLog(this.id, this.tab, this.text);
 			}
 
-		window._listenLog = (listener: LogListener, 
+		self._listenLog = (listener: LogListener, 
 			callback: (filterObj: LogListenerObject) => void): LogListenerLine[] => {
 				const filterObj: LogListenerObject = {
 					id: 'all',
@@ -209,7 +210,7 @@ export namespace GlobalDeclarations {
 				return getLog('all', 'all', '');
 			};
 
-		window._getIdsAndTabs = async (selectedId: CRM.GenericNodeId, selectedTab: TabId|'background', 
+		self._getIdsAndTabs = async (selectedId: CRM.GenericNodeId, selectedTab: TabId|'background', 
 			callback: (result: {
 				ids: {
 					id: string|CRM.GenericNodeId;
@@ -222,7 +223,7 @@ export namespace GlobalDeclarations {
 					tabs: await modules.Logging.Listeners.getTabs(selectedId)
 				});
 			}
-		window._getCurrentTabIndex = (id: CRM.GenericNodeId, currentTab: TabId|'background', 
+		self._getCurrentTabIndex = (id: CRM.GenericNodeId, currentTab: TabId|'background', 
 			listener: (newTabIndexes: TabIndex[]) => void) => {
 				if (currentTab === 'background') {
 					listener([0]);
@@ -238,8 +239,8 @@ export namespace GlobalDeclarations {
 		modules.globalObject.globals.availablePermissions = available.permissions;
 	}
 	export async function refreshPermissions() {
-		if ((window as any).chrome && (window as any).chrome.permissions) {
-			const chromePermissions: typeof _chrome.permissions = (window as any).chrome.permissions;
+		if (chrome && chrome.permissions) {
+			const chromePermissions: typeof _chrome.permissions = chrome.permissions;
 			if ('onRemoved' in chromePermissions && 'onAdded' in chromePermissions) {
 				chromePermissions.onRemoved.addListener(permissionsChanged);
 				chromePermissions.onAdded.addListener(permissionsChanged);
@@ -255,7 +256,7 @@ export namespace GlobalDeclarations {
 			key?: number[];
 		}
 
-		window.createHandlerFunction = (port) => {
+		self.createHandlerFunction = (port) => {
 			return async (message: HandshakeMessage) => {
 				const crmValues = modules.crmValues;
 				const tabData = crmValues.tabData;
@@ -268,7 +269,7 @@ export namespace GlobalDeclarations {
 						delete tabNodeData.secretKey;
 						tabNodeData.port = port;
 
-						modules.Util.setMapDefault(nodeInstances, message.id, new window.Map());
+						modules.Util.setMapDefault(nodeInstances, message.id, new Map());
 
 						const instancesArr: {
 							id: TabId;
@@ -614,7 +615,7 @@ export namespace GlobalDeclarations {
 					}
 					modules.storages.failedLookups.push(currentTabId);
 				} else {
-					window.log(err.message);
+					self.log(err.message);
 				}
 			});
 			if (!tab) {
@@ -663,7 +664,7 @@ export namespace GlobalDeclarations {
 				await browserAPI.contextMenus.update(ids.get(nodeId), 
 					modules.Util.applyContextmenuOverride(base || {},
 						overrides || {})).catch((err) => {
-							window.log(err.message);
+							self.log(err.message);
 						})
 				return void 0;
 			});
@@ -836,7 +837,7 @@ export namespace GlobalDeclarations {
 		if (tabs.length === 0) {
 			return;
 		}
-		await window.Promise.all(tabs.map(async (tab) => {
+		await Promise.all(tabs.map(async (tab) => {
 			const state = await Promise.race([
 				modules.Util.iipe<RestoreTabStatus>(async () => {
 					if (modules.Util.canRunOnUrl(tab.url)) {
@@ -855,30 +856,30 @@ export namespace GlobalDeclarations {
 						return RestoreTabStatus.IGNORED;
 					}
 				}),
-				new window.Promise<RestoreTabStatus>(async (resolve) => {
+				new Promise<RestoreTabStatus>(async (resolve) => {
 					await modules.Util.wait(2500);
 					resolve(RestoreTabStatus.FROZEN);
 				})
 			]);
 			switch (state) {
 				case RestoreTabStatus.SUCCESS:
-					window.logAsync(
-						window.__(I18NKeys.background.globalDeclarations.tabRestore.success,
+					self.logAsync(
+						self.__(I18NKeys.background.globalDeclarations.tabRestore.success,
 						tab.id));
 					break;
 				case RestoreTabStatus.UNKNOWN_ERROR:
-					window.logAsync(
-						window.__(I18NKeys.background.globalDeclarations.tabRestore.unknownError,
+					self.logAsync(
+						self.__(I18NKeys.background.globalDeclarations.tabRestore.unknownError,
 						tab.id));
 					break;
 				case RestoreTabStatus.IGNORED:
-					window.logAsync(
-						window.__(I18NKeys.background.globalDeclarations.tabRestore.ignored,
+					self.logAsync(
+						self.__(I18NKeys.background.globalDeclarations.tabRestore.ignored,
 						tab.id));
 					break;
 				case RestoreTabStatus.FROZEN:
-					window.logAsync(
-						window.__(I18NKeys.background.globalDeclarations.tabRestore.frozen,
+					self.logAsync(
+						self.__(I18NKeys.background.globalDeclarations.tabRestore.frozen,
 						tab.id));
 					break;
 			};

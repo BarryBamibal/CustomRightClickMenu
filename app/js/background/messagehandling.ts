@@ -149,24 +149,7 @@ export namespace MessageHandling {
 		action: string;
 	}
 	export function doFetch(url: string): Promise<string> {
-		if ('fetch' in window && window.fetch !== undefined) {
-			return fetch(url).then(r => r.text()) as unknown as Promise<string>;
-		}
-
-		return new Promise<string>((resolve, reject) => {
-			const xhr = new window.XMLHttpRequest();
-			xhr.open('GET', url);
-			xhr.onreadystatechange = () => {
-				if (xhr.readyState === 4) {
-					if (xhr.status >= 200 && xhr.status < 300) {
-						resolve(xhr.responseText);
-					} else {
-						reject(xhr.status);
-					}
-				}
-			}
-			xhr.send();
-		});
+		return fetch(url).then(r => r.text()) as unknown as Promise<string>;
 	}
 	export function backgroundFetch(message: CRMAPIMessageInstance<string, {
 		url: string;
@@ -242,8 +225,8 @@ export namespace MessageHandling {
 						let isReload = modules.crmValues.tabData.has(messageSender.tab.id);
 						modules.crmValues.tabData.delete(messageSender.tab.id);
 						modules.crmValues.tabData.set(messageSender.tab.id, {
-							nodes: new window.Map(),
-							libraries: new window.Map()
+							nodes: new Map(),
+							libraries: new Map()
 						});
 
 						response = await modules.CRMNodes
@@ -262,9 +245,6 @@ export namespace MessageHandling {
 					break;
 				case 'installUserScript':
 					await modules.CRMNodes.Script.Updating.install(message.data);
-					break;
-				case 'applyLocalStorage':
-					localStorage.setItem(message.data.key, message.data.value);
 					break;
 				case 'getStyles':
 					if (messageSender && respond) {

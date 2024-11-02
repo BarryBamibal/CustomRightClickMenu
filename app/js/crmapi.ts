@@ -52,16 +52,6 @@ export type CRMAPIMessage = {
 }|{
 	id: CRM.GenericNodeId;
 	tabIndex: TabIndex;
-	tabId: TabId;
-	type: 'applyLocalStorage';
-	data: {
-		tabIndex: TabIndex;
-		key: string;
-		value: any;
-	}
-}|{
-	id: CRM.GenericNodeId;
-	tabIndex: TabIndex;
 	type: 'respondToBackgroundMessage',
 	data: {
 		message: any,
@@ -1903,17 +1893,6 @@ export type CRMAPIMessage = {
 					} else {
 						//Send message
 						localStorageProxy[key] = value;
-						this.__privates._sendMessage({
-							id: this.__privates._id,
-							tabIndex: this.__privates._tabIndex,
-							type: 'applyLocalStorage',
-							data: {
-								tabIndex: this.__privates._tabIndex,
-								key: key,
-								value: value
-							},
-							tabId: this.__privates._tabData.id
-						});
 					}
 				}
 			},
