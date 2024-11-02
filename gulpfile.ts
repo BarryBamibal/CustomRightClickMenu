@@ -10,7 +10,6 @@ import replace from 'gulp-replace';
 import gulpBabel from 'gulp-babel';
 import ts from 'gulp-typescript';
 import rename from 'gulp-rename';
-import banner from 'gulp-banner';
 import * as rollup from 'rollup';
 import xpi from 'firefox-xpi';
 import crisper from 'crisper';
@@ -1594,7 +1593,7 @@ class Tasks {
 											static html() {
 												return gulp
 													.src(['build/html/**.html'])
-													.pipe(banner(BANNERS.html))
+													.pipe(replace(/^/g, BANNERS.html))
 													.pipe(gulp.dest('./build/html/'))
 											}
 
@@ -1608,7 +1607,7 @@ class Tasks {
 															cwd: './build',
 															base: './build'
 														})
-													.pipe(banner(BANNERS.js + '\n\nvar exports = {};'))
+													.pipe(replace(/^/g, BANNERS.js + '\n\nvar exports = {};'))
 													.pipe(replace(/export\s*\{\}/g, ''))
 													.pipe(gulp.dest('./build/'))
 											}
